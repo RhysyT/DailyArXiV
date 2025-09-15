@@ -1,4 +1,4 @@
-name: Build Daily arXiv pages.
+name: Build Daily arXiv pages
 
 on:
   workflow_dispatch: {}
