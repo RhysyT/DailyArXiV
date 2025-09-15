@@ -99,11 +99,16 @@ jobs:
           set -e
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if ! git diff --quiet -- docs; then
-            git add -A docs
-            git commit -m "Daily arXiv pages: update docs/ and add ${STAMP}_*.html"
-            git push
-            echo "Committed and pushed updated docs/"
-          else
+
+          # Stage everything in docs/, including new files
+          git add -A docs
+
+          # Only commit if something is staged
+          if git diff --cached --quiet; then
             echo "No changes to commit."
+          else
+            # Optional: include the STAMP in the message if you exported it earlier
+            git commit -m "Daily arXiv pages: update docs/ (stamp=${STAMP:-unknown})"
+            git push
+            echo "Committed and pushed docs/."
           fi
