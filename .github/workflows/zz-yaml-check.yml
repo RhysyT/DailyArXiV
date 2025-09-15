@@ -1,11 +1,8 @@
-name: "YAML check"
-
+name: YAML check
 on:
   workflow_dispatch:
-
 jobs:
-  test:
+  t:
     runs-on: ubuntu-latest
     steps:
-      - name: Echo
-        run: echo "YAML parsed fine."
+      - run: echo "YAML parsed fine."
