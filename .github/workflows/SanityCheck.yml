@@ -1,0 +1,60 @@
+name: Sanity: Run DailyArXiV.py
+
+on:
+  workflow_dispatch: {}   # manual runs only
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify script is in repo root
+        run: |
+          ls -al
+          test -f DailyArXiV.py || (echo "::error ::DailyArXiV.py not found at repo root"; exit 1)
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4
+
+      - name: Run script (show files afterwards)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python DailyArXiV.py
+          echo "== workspace after running =="
+          ls -al
+          echo "== top-level HTML files =="
+          ls -1 *.html || true
+
+      - name: Upload generated HTML (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: arxiv-html
+          path: |
+            *_Priority.html
+            *_Main.html
+            *_Interest.html
+          if-no-files-found: error
+
+      # OPTIONAL: also commit the generated HTML into the repo root so you can see them in the Files tab
+      # - name: Commit root HTML (sanity)
+      #   if: always()
+      #   run: |
+      #     set -e
+      #     git config user.name  "github-actions[bot]"
+      #     git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      #     if ls *_Priority.html *_Main.html *_Interest.html >/dev/null 2>&1; then
+      #       git add *_Priority.html *_Main.html *_Interest.html
+      #       git commit -m "Sanity: add generated HTML to repo root"
+      #       git push
+      #     fi
