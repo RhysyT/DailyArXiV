@@ -3,8 +3,7 @@ name: Build Daily arXiv pages
 on:
   workflow_dispatch: {}
   schedule:
-    # Weekdays at 05:10 UTC (07:10 Prague in summer / 06:10 in winter)
-    - cron: "10 5 * * 1-5"
+    - cron: "10 5 * * 1-5"  # Weekdays 05:10 UTC
 
 permissions:
   contents: write
@@ -21,6 +20,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Verify repo layout
+        run: |
+          echo "== repo root =="
+          ls -al
+          test -f DailyArXiV.py || (echo "::error ::DailyArXiV.py not found in repo root"; exit 1)
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -28,46 +33,65 @@ jobs:
 
       - name: Install dependencies
         run: |
+          python -V
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4
+          python -c "import bs4,requests; print('Imports OK:', bs4.__version__, requests.__version__)"
 
-      - name: Run generator
+      - name: Run generator (show stdout + workspace)
+        shell: bash
         run: |
+          set -euo pipefail
+          echo "== running DailyArXiV.py =="
           python DailyArXiV.py
-          echo "== Workspace after generator =="
+          echo "== workspace after generator =="
           ls -al
+          echo "== find html (top-level) =="
+          find . -maxdepth 1 -type f -name "*.html" -print | sed 's|^\./||'
 
       - name: Collect outputs into docs/ (dated + stable) and disable Jekyll
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p docs
+          touch docs/.nojekyll  # empty is fine; disables Jekyll
+          # If you already added docs/index.html manually, keep it
+          if [ ! -f docs/index.html ]; then
+            printf '<!doctype html>\n<meta charset="utf-8">\n<title>Daily arXiv</title>\n<h1>Daily arXiv pages</h1>\n<ul>\n  <li><a href="Priority.html">Priority</a></li>\n  <li><a href="Main.html">Main</a></li>\n  <li><a href="Interest.html">Interest</a></li>\n</ul>\n' > docs/index.html
+          fi
 
-          # Find the most recent *_Priority.html the script created
-          mapfile -t STAMPS < <(ls -1 *_Priority.html 2>/dev/null | sed 's/_Priority\.html$//' | sort -r)
-          if [ ${#STAMPS[@]} -eq 0 ]; then
+          echo "== probing for generated *_Priority.html =="
+          shopt -s nullglob
+          files=( *_Priority.html )
+          if [ ${#files[@]} -eq 0 ]; then
             echo "::error title=No generated files found::Expected *_Priority.html after running DailyArXiV.py"
+            echo "Listing current dir:"
+            ls -al
             exit 1
           fi
-          STAMP="${STAMPS[0]}"
+
+          # Use the newest stamp if multiple exist
+          newest=$(ls -1t *_Priority.html | head -n1)
+          STAMP="${newest%_Priority.html}"
           echo "Detected STAMP=$STAMP"
           echo "STAMP=$STAMP" >> "$GITHUB_ENV"
 
-          mkdir -p docs
+          # Copy dated files (fail if missing so we learn fast)
+          for base in Priority Main Interest; do
+            src="${STAMP}_${base}.html"
+            if [ ! -f "$src" ]; then
+              echo "::error title=Missing expected file::$src was not created by the generator"
+              exit 1
+            fi
+            cp "$src" "docs/${STAMP}_${base}.html"
+          done
 
-          # Copy dated files
-          cp "${STAMP}_Priority.html"  "docs/${STAMP}_Priority.html"
-          cp "${STAMP}_Main.html"      "docs/${STAMP}_Main.html"
-          cp "${STAMP}_Interest.html"  "docs/${STAMP}_Interest.html"
-
-          # Stable (today) URLs
+          # Stable URLs (today)
           cp "${STAMP}_Priority.html"  "docs/Priority.html"
           cp "${STAMP}_Main.html"      "docs/Main.html"
           cp "${STAMP}_Interest.html"  "docs/Interest.html"
 
-          # Ensure Pages treats this as static (no Jekyll build)
-          touch docs/.nojekyll
-
-          echo "== docs/ contents =="
+          echo "== docs/ after copy =="
           ls -al docs
 
       - name: Commit and push changes (if any)
@@ -75,7 +99,6 @@ jobs:
           set -e
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           if ! git diff --quiet -- docs; then
             git add -A docs
             git commit -m "Daily arXiv pages: update docs/ and add ${STAMP}_*.html"
