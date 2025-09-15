@@ -1,4 +1,4 @@
-name: Sanity: Run DailyArXiV.py
+name: Sanity
 
 on:
   workflow_dispatch: {}   # manual runs only
