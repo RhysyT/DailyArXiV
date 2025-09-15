@@ -1,7 +1,7 @@
 name: Build Daily arXiv pages
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
   schedule:
     - cron: "10 5 * * 1-5"  # Weekdays 05:10 UTC
 
@@ -19,12 +19,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Verify repo layout
-        run: |
-          echo "== repo root =="
-          ls -al
-          test -f DailyArXiV.py || (echo "::error ::DailyArXiV.py not found in repo root"; exit 1)
+          ref: ${{ github.ref_name }}
+          persist-credentials: true  # use GITHUB_TOKEN for push
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -33,82 +29,83 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -V
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4
-          python -c "import bs4,requests; print('Imports OK:', bs4.__version__, requests.__version__)"
 
-      - name: Run generator (show stdout + workspace)
+      - name: Run generator (and show outputs)
         shell: bash
         run: |
-          set -euo pipefail
-          echo "== running DailyArXiV.py =="
+          set -euxo pipefail
           python DailyArXiV.py
           echo "== workspace after generator =="
           ls -al
-          echo "== find html (top-level) =="
-          find . -maxdepth 1 -type f -name "*.html" -print | sed 's|^\./||'
+          echo "== top-level HTML files =="
+          ls -1 *.html || true
 
-      - name: Collect outputs into docs/ (dated + stable) and disable Jekyll
+      - name: Collect outputs into docs/ (dated + stable)
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p docs
-          touch docs/.nojekyll  # empty is fine; disables Jekyll
-          # If you already added docs/index.html manually, keep it
-          if [ ! -f docs/index.html ]; then
-            printf '<!doctype html>\n<meta charset="utf-8">\n<title>Daily arXiv</title>\n<h1>Daily arXiv pages</h1>\n<ul>\n  <li><a href="Priority.html">Priority</a></li>\n  <li><a href="Main.html">Main</a></li>\n  <li><a href="Interest.html">Interest</a></li>\n</ul>\n' > docs/index.html
-          fi
 
-          echo "== probing for generated *_Priority.html =="
-          shopt -s nullglob
-          files=( *_Priority.html )
-          if [ ${#files[@]} -eq 0 ]; then
+          newest=$(ls -1t *_Priority.html 2>/dev/null | head -n1 || true)
+          if [ -z "$newest" ]; then
             echo "::error title=No generated files found::Expected *_Priority.html after running DailyArXiV.py"
-            echo "Listing current dir:"
-            ls -al
             exit 1
           fi
-
-          # Use the newest stamp if multiple exist
-          newest=$(ls -1t *_Priority.html | head -n1)
           STAMP="${newest%_Priority.html}"
-          echo "Detected STAMP=$STAMP"
+          echo "Using STAMP=$STAMP"
           echo "STAMP=$STAMP" >> "$GITHUB_ENV"
 
-          # Copy dated files (fail if missing so we learn fast)
+          # Copy dated files (fail if any missing)
           for base in Priority Main Interest; do
             src="${STAMP}_${base}.html"
-            if [ ! -f "$src" ]; then
-              echo "::error title=Missing expected file::$src was not created by the generator"
-              exit 1
-            fi
+            [ -f "$src" ] || { echo "::error ::Missing $src"; exit 1; }
             cp "$src" "docs/${STAMP}_${base}.html"
           done
 
-          # Stable URLs (today)
+          # Stable "today" URLs
           cp "${STAMP}_Priority.html"  "docs/Priority.html"
           cp "${STAMP}_Main.html"      "docs/Main.html"
           cp "${STAMP}_Interest.html"  "docs/Interest.html"
+
+          # Keep your index.html if present; ensure static serving
+          [ -f docs/index.html ] || printf '<!doctype html>\n<title>Daily arXiv</title>\n<h1>Daily arXiv pages</h1>\n<ul>\n<li><a href="Priority.html">Priority</a></li>\n<li><a href="Main.html">Main</a></li>\n<li><a href="Interest.html">Interest</a></li>\n</ul>\n' > docs/index.html
+          touch docs/.nojekyll
 
           echo "== docs/ after copy =="
           ls -al docs
 
       - name: Commit and push changes (if any)
+        shell: bash
         run: |
-          set -e
+          set -euxo pipefail
+
+          # Show repo/branch
+          git rev-parse --abbrev-ref HEAD || true
+          git remote -v || true
+          echo "github.ref_name=${{ github.ref_name }}"
+
+          # Configure bot + safe dir
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-          # Stage everything in docs/, including new files
+          # Stage everything under docs/ (new + modified)
+          git status --porcelain
           git add -A docs
+          echo "== STAGED =="
+          git diff --cached --name-status || true
 
-          # Only commit if something is staged
+          # If nothing staged, bail out quietly
           if git diff --cached --quiet; then
             echo "No changes to commit."
-          else
-            # Optional: include the STAMP in the message if you exported it earlier
-            git commit -m "Daily arXiv pages: update docs/ (stamp=${STAMP:-unknown})"
-            git push
-            echo "Committed and pushed docs/."
+            exit 0
           fi
+
+          # Rebase in case branch moved
+          git pull --rebase || true
+
+          git commit -m "Daily arXiv pages: update docs/ (stamp=${STAMP:-unknown})"
+          git push
+          echo "PUSHED."
