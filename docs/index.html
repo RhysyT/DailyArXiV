@@ -1,9 +1,117 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
 <title>Daily arXiv</title>
-<h1>Daily arXiv pages</h1>
-<ul>
-  <li><a href="Priority.html">Priority</a></li>
-  <li><a href="Main.html">Main</a></li>
-  <li><a href="Interest.html">Interest</a></li>
-</ul>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- 🌌 emoji favicon as an inline SVG data-URI (no extra files needed) -->
+<link rel="icon" type="image/svg+xml" sizes="any"
+  href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' ry='12' fill='%23b31b1b'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' font-size='42'%3E%F0%9F%8C%8C%3C/text%3E%3C/svg%3E">
+
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #1b1f23;
+    --muted: #5f6b7a;
+    --accent: #b31b1b; /* arXiv/Cornell-ish red */
+    --link: #004aad;
+    --card: #f7f8fa;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font: 16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; /* standard font for links/text */
+    color: var(--ink);
+    background: var(--bg);
+  }
+
+  /* Top red banner with “computer system” monospace vibe */
+  .hero {
+    background: var(--accent);
+    color: #fff;
+    padding: 1.25rem 1rem;
+  }
+  .hero h1 {
+    margin: 0 auto;
+    max-width: 900px;
+    font: 600 1.75rem/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    letter-spacing: 0.2px;
+  }
+
+  /* Main content */
+  .wrap {
+    margin: 1.5rem auto;
+    max-width: 900px;
+    padding: 0 1rem 2rem;
+  }
+
+  ul.links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid #e6e9ef;
+    border-radius: 14px;
+    padding: 0.9rem 1rem;
+    transition: transform .06s ease, box-shadow .06s ease;
+  }
+  .card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  }
+
+  .card a {
+    display: inline-block;
+    text-decoration: none;
+    color: var(--ink);
+    font-weight: 650;
+    font-size: 1.1rem; /* comfortable size on mobile */
+  }
+  .card a:hover { color: var(--link); text-decoration: underline; }
+
+  .desc {
+    margin: 0.25rem 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
+  /* Mobile tweaks: slightly larger touch targets */
+  @media (max-width: 520px) {
+    .hero h1 { font-size: 1.5rem; }
+    .card a { font-size: 1.15rem; }
+    .desc { font-size: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>Daily arXiv pages</h1>
+</header>
+
+<main class="wrap">
+  <ul class="links">
+    <li class="card">
+      <a href="Priority.html">Priority</a>
+      <p class="desc">Galaxies and methods.</p>
+    </li>
+    <li class="card">
+      <a href="Main.html">Main</a>
+      <p class="desc">Everything else (astro-ph, non-priority).</p>
+    </li>
+    <li class="card">
+      <a href="Interest.html">Interest</a>
+      <p class="desc">History, philosophy, and education.</p>
+    </li>
+  </ul>
+</main>
+
+</body>
+</html>
