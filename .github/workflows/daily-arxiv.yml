@@ -3,21 +3,12 @@ name: Build Daily arXiv pages
 on:
   workflow_dispatch:
   schedule:
+  # 3 attempts because of GitHub's terrible scheduling, will likely acutally execute 2 hours later
+    - cron: "17 2 * * 1-5"
+      timezone: "Europe/Prague"
     - cron: "17 3 * * 1-5"
       timezone: "Europe/Prague"
-    - cron: "47 3 * * 1-5"
-      timezone: "Europe/Prague"
     - cron: "17 4 * * 1-5"
-      timezone: "Europe/Prague"
-    - cron: "47 4 * * 1-5"
-      timezone: "Europe/Prague"
-    - cron: "7 6 * * 1-5"
-      timezone: "Europe/Prague"
-    - cron: "22 6 * * 1-5"
-      timezone: "Europe/Prague"
-    - cron: "37 6 * * 1-5"
-      timezone: "Europe/Prague"
-    - cron: "52 6 * * 1-5"
       timezone: "Europe/Prague"
   
     #- cron: "10 5 * * 1-5"  # Weekdays 05:10 UTC
